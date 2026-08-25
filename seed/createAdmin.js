@@ -6,7 +6,7 @@ const User = require("../models/User");
 
 dotenv.config();
 
-const createSuperAdmin = async () => {
+const createAdmin = async () => {
     try {
         // Connect to MongoDB
         await connectDB();
@@ -17,31 +17,31 @@ const createSuperAdmin = async () => {
         });
 
         if (existingUser) {
-            console.log("Super Admin already exists.");
+            console.log("Admin already exists.");
             process.exit(0);
         }
 
         // Hash password
         const hashedPassword = await bcrypt.hash("Admin@123", 10);
 
-        // Create Super Admin
+        // Create Admin
         const user = await User.create({
-            name: "Digintra Super Admin",
+            name: "Digintra Admin",
             email: "admin@digintra.com",
             password: hashedPassword,
-            role: "superadmin",
+            role: "admin",
             status: "active",
         });
 
-        console.log("Super Admin created successfully!");
+        console.log("Admin created successfully!");
         console.log("Email:", user.email);
         console.log("Role:", user.role);
 
         process.exit(0);
     } catch (error) {
-        console.error("Error creating Super Admin:", error.message);
+        console.error("Error creating Admin:", error.message);
         process.exit(1);
     }
 };
 
-createSuperAdmin();
+createAdmin();

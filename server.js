@@ -10,6 +10,7 @@ const User = require("./models/User");
 const authRoutes = require("./routes/authRoutes");
 const { protect } = require("./middleware/authMiddleware");
 const { authorize } = require("./middleware/authorizationMiddleware");
+const blogRoutes = require("./routes/blogRoutes");
 
 // Load environment variables
 dotenv.config();
@@ -90,6 +91,7 @@ app.get(
 
 // API test route
 app.use("/api/auth", authRoutes);
+app.use("/api/blogs", blogRoutes);
 
 // Server
 const PORT = process.env.PORT || 5000;

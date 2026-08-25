@@ -69,8 +69,8 @@ const createBlog = async (req, res) => {
 const getBlogs = async (req, res) => {
     try {
         const blogs = await Blog.find()
-            .populate("author", "name email")
-            .populate("category", "name")
+            .populate("author", "name email")// by the use of author id we get the author name and email
+            .populate("category", "name")// by the use of category id we get the category name
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -247,6 +247,8 @@ const publishBlog = async (req, res) => {
         });
     }
 };
+
+
 
 
 module.exports = {

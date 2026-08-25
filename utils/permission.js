@@ -1,5 +1,5 @@
 const permissions = {
-  superadmin: [
+  admin: [
     "blog.create",
     "blog.read",
     "blog.update",
@@ -15,21 +15,6 @@ const permissions = {
     "user.read",
     "user.update",
     "user.delete",
-
-    "seo.update",
-  ],
-
-  admin: [
-    "blog.create",
-    "blog.read",
-    "blog.update",
-    "blog.delete",
-    "blog.publish",
-
-    "category.create",
-    "category.read",
-    "category.update",
-    "category.delete",
 
     "seo.update",
   ],
