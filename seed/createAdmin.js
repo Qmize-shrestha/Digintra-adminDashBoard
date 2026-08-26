@@ -1,6 +1,4 @@
 const dotenv = require("dotenv");
-const bcrypt = require("bcryptjs");
-
 const connectDB = require("../config/db");
 const User = require("../models/User");
 
@@ -21,25 +19,22 @@ const createAdmin = async () => {
             process.exit(0);
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash("Admin@123", 10);
-
-        // Create Admin
+        // Create Admin (pre-save hook in User model hashes the password)
         const user = await User.create({
             name: "Digintra Admin",
             email: "admin@digintra.com",
-            password: hashedPassword,
+            password: "Admin@123",
             role: "admin",
             status: "active",
         });
 
-        console.log("Admin created successfully!");
+        console.log("✅ Admin created successfully!");
         console.log("Email:", user.email);
         console.log("Role:", user.role);
 
         process.exit(0);
     } catch (error) {
-        console.error("Error creating Admin:", error.message);
+        console.error("❌ Error creating Admin:", error.message);
         process.exit(1);
     }
 };

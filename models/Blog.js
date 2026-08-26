@@ -97,4 +97,10 @@ const blogSchema = new mongoose.Schema(
   }
 );
 
+// Indexes for query performance & search
+blogSchema.index({ status: 1, createdAt: -1 });
+blogSchema.index({ author: 1 });
+blogSchema.index({ category: 1 });
+blogSchema.index({ title: "text", excerpt: "text" });
+
 module.exports = mongoose.model("Blog", blogSchema);

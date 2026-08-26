@@ -1,6 +1,8 @@
 const Blog = require("../models/Blog");
 
-// CREATE BLOG
+// @desc    Create a new blog
+// @route   POST /api/blogs
+// @access  Private (Admin, Editor)
 const createBlog = async (req, res) => {
     try {
         const {
@@ -17,15 +19,20 @@ const createBlog = async (req, res) => {
         } = req.body;
 
         // Basic validation
-        if (!title || !slug || !content) {
+        if (!title || !content) {
             return res.status(400).json({
                 success: false,
-                message: "Title, slug and content are required",
+                message: "Title and content are required",
             });
         }
 
+        // Generate or sanitize slug
+        const finalSlug = slug
+            ? slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+            : title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
         // Check duplicate slug
-        const existingBlog = await Blog.findOne({ slug });
+        const existingBlog = await Blog.findOne({ slug: finalSlug });
 
         if (existingBlog) {
             return res.status(400).json({
@@ -36,27 +43,31 @@ const createBlog = async (req, res) => {
 
         // Create blog
         const blog = await Blog.create({
-            title,
-            slug,
-            excerpt,
+            title: title.trim(),
+            slug: finalSlug,
+            excerpt: excerpt ? excerpt.trim() : "",
             content,
-            featuredImage,
+            featuredImage: featuredImage || "",
             author: req.user._id,
-            category,
-            tags,
+            category: category || null,
+            tags: Array.isArray(tags) ? tags : [],
             status: status || "draft",
-            scheduledAt,
-            seo,
+            scheduledAt: scheduledAt || null,
+            seo: seo || {},
         });
+
+        // Populate author & category before returning
+        const populatedBlog = await Blog.findById(blog._id)
+            .populate("author", "name email role")
+            .populate("category", "name slug");
 
         res.status(201).json({
             success: true,
             message: "Blog created successfully",
-            blog,
+            blog: populatedBlog,
         });
     } catch (error) {
         console.error("Create blog error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
@@ -64,23 +75,66 @@ const createBlog = async (req, res) => {
     }
 };
 
-
-// GET ALL BLOGS
+// @desc    Get all blogs (Paginated, Searchable, Filterable)
+// @route   GET /api/blogs
+// @access  Private
 const getBlogs = async (req, res) => {
     try {
-        const blogs = await Blog.find()
-            .populate("author", "name email")// by the use of author id we get the author name and email
-            .populate("category", "name")// by the use of category id we get the category name
-            .sort({ createdAt: -1 });
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const skip = (page - 1) * limit;
+
+        const { status, category, author, search, tag, sort } = req.query;
+
+        const filter = {};
+
+        if (status) {
+            filter.status = status;
+        }
+
+        if (category) {
+            filter.category = category;
+        }
+
+        if (author) {
+            filter.author = author;
+        }
+
+        if (tag) {
+            filter.tags = { $in: [tag] };
+        }
+
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { excerpt: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        // Sorting options
+        let sortOption = { createdAt: -1 };
+        if (sort === "oldest") sortOption = { createdAt: 1 };
+        if (sort === "title_asc") sortOption = { title: 1 };
+        if (sort === "title_desc") sortOption = { title: -1 };
+
+        const total = await Blog.countDocuments(filter);
+        const blogs = await Blog.find(filter)
+            .populate("author", "name email role")
+            .populate("category", "name slug")
+            .sort(sortOption)
+            .skip(skip)
+            .limit(limit);
 
         res.status(200).json({
             success: true,
             count: blogs.length,
+            total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
             blogs,
         });
     } catch (error) {
         console.error("Get blogs error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
@@ -88,13 +142,18 @@ const getBlogs = async (req, res) => {
     }
 };
 
-
-// GET SINGLE BLOG
+// @desc    Get single blog by ID or slug
+// @route   GET /api/blogs/:id
+// @access  Private
 const getBlogById = async (req, res) => {
     try {
-        const blog = await Blog.findById(req.params.id)
-            .populate("author", "name email")
-            .populate("category", "name");
+        const query = req.params.id.match(/^[0-9a-fA-F]{24}$/)
+            ? { _id: req.params.id }
+            : { slug: req.params.id };
+
+        const blog = await Blog.findOne(query)
+            .populate("author", "name email role")
+            .populate("category", "name slug");
 
         if (!blog) {
             return res.status(404).json({
@@ -109,7 +168,6 @@ const getBlogById = async (req, res) => {
         });
     } catch (error) {
         console.error("Get blog error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
@@ -117,8 +175,9 @@ const getBlogById = async (req, res) => {
     }
 };
 
-
-// UPDATE BLOG
+// @desc    Update blog
+// @route   PUT /api/blogs/:id
+// @access  Private (Admin, Author/Editor)
 const updateBlog = async (req, res) => {
     try {
         const blog = await Blog.findById(req.params.id);
@@ -127,6 +186,14 @@ const updateBlog = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: "Blog not found",
+            });
+        }
+
+        // Ownership check: Only Admin or the blog's Author can update
+        if (req.user.role !== "admin" && blog.author.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Not authorized to update another user's blog",
             });
         }
 
@@ -143,10 +210,11 @@ const updateBlog = async (req, res) => {
             seo,
         } = req.body;
 
-        // Check duplicate slug
+        // Check duplicate slug if slug is changed
         if (slug && slug !== blog.slug) {
+            const finalSlug = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
             const existingBlog = await Blog.findOne({
-                slug,
+                slug: finalSlug,
                 _id: { $ne: blog._id },
             });
 
@@ -156,29 +224,32 @@ const updateBlog = async (req, res) => {
                     message: "A blog with this slug already exists",
                 });
             }
+            blog.slug = finalSlug;
         }
 
-        blog.title = title ?? blog.title;
-        blog.slug = slug ?? blog.slug;
-        blog.excerpt = excerpt ?? blog.excerpt;
-        blog.content = content ?? blog.content;
-        blog.featuredImage = featuredImage ?? blog.featuredImage;
-        blog.category = category ?? blog.category;
-        blog.tags = tags ?? blog.tags;
-        blog.status = status ?? blog.status;
-        blog.scheduledAt = scheduledAt ?? blog.scheduledAt;
-        blog.seo = seo ?? blog.seo;
+        if (title !== undefined) blog.title = title.trim();
+        if (excerpt !== undefined) blog.excerpt = excerpt.trim();
+        if (content !== undefined) blog.content = content;
+        if (featuredImage !== undefined) blog.featuredImage = featuredImage;
+        if (category !== undefined) blog.category = category || null;
+        if (tags !== undefined) blog.tags = Array.isArray(tags) ? tags : blog.tags;
+        if (status !== undefined) blog.status = status;
+        if (scheduledAt !== undefined) blog.scheduledAt = scheduledAt;
+        if (seo !== undefined) blog.seo = seo;
 
         const updatedBlog = await blog.save();
+
+        const populatedBlog = await Blog.findById(updatedBlog._id)
+            .populate("author", "name email role")
+            .populate("category", "name slug");
 
         res.status(200).json({
             success: true,
             message: "Blog updated successfully",
-            blog: updatedBlog,
+            blog: populatedBlog,
         });
     } catch (error) {
         console.error("Update blog error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
@@ -186,8 +257,9 @@ const updateBlog = async (req, res) => {
     }
 };
 
-
-// DELETE BLOG
+// @desc    Delete blog
+// @route   DELETE /api/blogs/:id
+// @access  Private (Admin, Author/Editor)
 const deleteBlog = async (req, res) => {
     try {
         const blog = await Blog.findById(req.params.id);
@@ -199,6 +271,14 @@ const deleteBlog = async (req, res) => {
             });
         }
 
+        // Ownership check: Only Admin or the blog's Author can delete
+        if (req.user.role !== "admin" && blog.author.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: "Not authorized to delete another user's blog",
+            });
+        }
+
         await blog.deleteOne();
 
         res.status(200).json({
@@ -207,7 +287,6 @@ const deleteBlog = async (req, res) => {
         });
     } catch (error) {
         console.error("Delete blog error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
@@ -215,8 +294,9 @@ const deleteBlog = async (req, res) => {
     }
 };
 
-
-// PUBLISH BLOG
+// @desc    Publish blog
+// @route   PATCH /api/blogs/:id/publish
+// @access  Private (Admin)
 const publishBlog = async (req, res) => {
     try {
         const blog = await Blog.findById(req.params.id);
@@ -233,23 +313,23 @@ const publishBlog = async (req, res) => {
 
         await blog.save();
 
+        const populatedBlog = await Blog.findById(blog._id)
+            .populate("author", "name email role")
+            .populate("category", "name slug");
+
         res.status(200).json({
             success: true,
             message: "Blog published successfully",
-            blog,
+            blog: populatedBlog,
         });
     } catch (error) {
         console.error("Publish blog error:", error);
-
         res.status(500).json({
             success: false,
             message: error.message,
         });
     }
 };
-
-
-
 
 module.exports = {
     createBlog,

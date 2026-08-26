@@ -1,9 +1,11 @@
-const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const sendEmail = require("../utils/sendEmail");
 
+// @desc    User login
+// @route   POST /api/auth/login
+// @access  Public
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -16,8 +18,8 @@ const login = async (req, res) => {
             });
         }
 
-        // Find user
-        const user = await User.findOne({ email });
+        // Find user with password
+        const user = await User.findOne({ email }).select("+password");
 
         if (!user) {
             return res.status(401).json({
@@ -30,15 +32,12 @@ const login = async (req, res) => {
         if (user.status !== "active") {
             return res.status(403).json({
                 success: false,
-                message: "Your account is inactive",
+                message: "Your account is inactive. Please contact an administrator.",
             });
         }
 
         // Compare password
-        const isPasswordCorrect = await bcrypt.compare(
-            password,
-            user.password
-        );
+        const isPasswordCorrect = await user.matchPassword(password);
 
         if (!isPasswordCorrect) {
             return res.status(401).json({
@@ -59,6 +58,7 @@ const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                status: user.status,
             },
         });
     } catch (error) {
@@ -69,6 +69,9 @@ const login = async (req, res) => {
     }
 };
 
+// @desc    User registration
+// @route   POST /api/auth/signup
+// @access  Public
 const signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -90,14 +93,11 @@ const signup = async (req, res) => {
             });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Create new user (role defaults to 'editor' per your User model)
+        // Create new user (pre-save hook hashes password, role defaults to 'editor')
         const user = await User.create({
             name,
             email,
-            password: hashedPassword,
+            password,
         });
 
         // Generate JWT
@@ -112,6 +112,7 @@ const signup = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                status: user.status,
             },
         });
     } catch (error) {
@@ -127,46 +128,55 @@ const signup = async (req, res) => {
 // @access  Public
 const forgotPassword = async (req, res) => {
     try {
-        const user = await User.findOne({ email: req.body.email });
+        const { email } = req.body;
 
-        if (!user) {
-            return res.status(404).json({
+        if (!email) {
+            return res.status(400).json({
                 success: false,
-                message: "There is no user with that email",
+                message: "Please provide an email address",
+            });
+        }
+
+        const user = await User.findOne({ email });
+
+        // Generic response to prevent email enumeration
+        if (!user) {
+            return res.status(200).json({
+                success: true,
+                message: "If an account with that email exists, a password reset link has been sent.",
             });
         }
 
         // Get reset token
         const resetToken = user.getResetPasswordToken();
-
         await user.save({ validateBeforeSave: false });
 
-        // Create reset url
-        const resetUrl = `${req.protocol}://${req.get("host")}/api/auth/resetpassword/${resetToken}`;
+        // Construct frontend reset URL
+        const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+        const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
 
-        const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
+        const message = `You are receiving this email because you (or someone else) requested a password reset for your Digintra account.\n\nPlease click the link below or paste it into your browser to reset your password:\n\n${resetUrl}\n\nThis link will expire in 10 minutes.\n\nIf you did not request this, please ignore this email.`;
 
         try {
             await sendEmail({
                 email: user.email,
-                subject: "Password reset token",
+                subject: "Digintra Account - Password Reset Request",
                 message,
             });
 
             res.status(200).json({
                 success: true,
-                message: "Email sent",
+                message: "If an account with that email exists, a password reset link has been sent.",
             });
         } catch (error) {
-            console.error(error);
+            console.error("Email send error:", error);
             user.resetPasswordToken = undefined;
             user.resetPasswordExpire = undefined;
-
             await user.save({ validateBeforeSave: false });
 
             return res.status(500).json({
                 success: false,
-                message: "Email could not be sent",
+                message: "Password reset email could not be sent. Please try again later.",
             });
         }
     } catch (error) {
@@ -182,7 +192,16 @@ const forgotPassword = async (req, res) => {
 // @access  Public
 const resetPassword = async (req, res) => {
     try {
-        // Get hashed token
+        const { password } = req.body;
+
+        if (!password || password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password is required and must be at least 6 characters",
+            });
+        }
+
+        // Hash token from param to compare with database
         const resetPasswordToken = crypto
             .createHash("sha256")
             .update(req.params.resettoken)
@@ -196,12 +215,12 @@ const resetPassword = async (req, res) => {
         if (!user) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid token",
+                message: "Invalid or expired password reset token",
             });
         }
 
-        // Set new password
-        user.password = await bcrypt.hash(req.body.password, 10);
+        // Set new password (pre-save hook will hash it)
+        user.password = password;
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
 
