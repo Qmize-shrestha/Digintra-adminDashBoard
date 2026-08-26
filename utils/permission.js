@@ -17,6 +17,7 @@ const permissions = {
     "user.delete",
 
     "seo.update",
+    "admin.dashboard",
   ],
 
   editor: [
