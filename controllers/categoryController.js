@@ -6,7 +6,7 @@ const Blog = require("../models/Blog");
 // @access  Private (Admin)
 const createCategory = async (req, res) => {
     try {
-        const { name, slug, description, status } = req.body;
+        const { name, slug, description, subCategories } = req.body;
 
         if (!name) {
             return res.status(400).json({
@@ -32,11 +32,23 @@ const createCategory = async (req, res) => {
             });
         }
 
+        // Process subcategories
+        let formattedSubCategories = [];
+        if (subCategories && Array.isArray(subCategories)) {
+            formattedSubCategories = subCategories.map((sub) => {
+                const subName = sub.name ? sub.name.trim() : "";
+                const subSlug = sub.slug 
+                    ? sub.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+                    : subName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+                return { name: subName, slug: subSlug };
+            }).filter(sub => sub.name !== ""); // Filter out empty ones
+        }
+
         const category = await Category.create({
             name: name.trim(),
             slug: finalSlug,
             description: description ? description.trim() : "",
-            status: status || "active",
+            subCategories: formattedSubCategories,
         });
 
         res.status(201).json({
@@ -142,7 +154,7 @@ const updateCategory = async (req, res) => {
             });
         }
 
-        const { name, slug, description, status } = req.body;
+        const { name, slug, description, subCategories } = req.body;
 
         // Check if new name or slug conflicts with existing category
         if (slug || name) {
@@ -170,7 +182,19 @@ const updateCategory = async (req, res) => {
 
         if (name) category.name = name.trim();
         if (description !== undefined) category.description = description.trim();
-        if (status) category.status = status;
+        
+        // Process subcategories
+        if (subCategories && Array.isArray(subCategories)) {
+            const formattedSubCategories = subCategories.map((sub) => {
+                const subName = sub.name ? sub.name.trim() : "";
+                const subSlug = sub.slug 
+                    ? sub.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+                    : subName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+                return { name: subName, slug: subSlug };
+            }).filter(sub => sub.name !== "");
+            
+            category.subCategories = formattedSubCategories;
+        }
 
         const updatedCategory = await category.save();
 

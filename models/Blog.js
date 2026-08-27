@@ -42,6 +42,12 @@ const blogSchema = new mongoose.Schema(
       ref: "Category",
     },
 
+    subCategorySlug: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     tags: [
       {
         type: String,

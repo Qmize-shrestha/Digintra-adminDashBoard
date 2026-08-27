@@ -20,11 +20,21 @@ const categorySchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    status: {
-      type: String,
-      enum: ["active", "inactive"],
-      default: "active",
-    },
+    subCategories: [
+      {
+        name: {
+          type: String,
+          required: [true, "Please add a subcategory name"],
+          trim: true,
+        },
+        slug: {
+          type: String,
+          required: [true, "Please add a subcategory slug"],
+          trim: true,
+          lowercase: true,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -32,7 +42,6 @@ const categorySchema = new mongoose.Schema(
 );
 
 // Indexing for search & sort performance
-categorySchema.index({ slug: 1 });
 categorySchema.index({ name: "text" });
 
 module.exports = mongoose.model("Category", categorySchema);
