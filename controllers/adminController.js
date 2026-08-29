@@ -13,7 +13,6 @@ const getAdminStats = async (req, res) => {
             totalBlogs,
             publishedBlogs,
             draftBlogs,
-            scheduledBlogs,
             totalCategories,
             recentBlogs,
             recentUsers,
@@ -23,7 +22,6 @@ const getAdminStats = async (req, res) => {
             Blog.countDocuments(),
             Blog.countDocuments({ status: "published" }),
             Blog.countDocuments({ status: "draft" }),
-            Blog.countDocuments({ status: "scheduled" }),
             Category.countDocuments(),
             Blog.find()
                 .select("title slug status author createdAt")
@@ -48,7 +46,6 @@ const getAdminStats = async (req, res) => {
                     total: totalBlogs,
                     published: publishedBlogs,
                     draft: draftBlogs,
-                    scheduled: scheduledBlogs,
                 },
                 categories: {
                     total: totalCategories,
@@ -66,4 +63,135 @@ const getAdminStats = async (req, res) => {
     }
 };
 
-module.exports = { getAdminStats };
+// @desc    Get all users
+// @route   GET /api/admin/users
+// @access  Private (Admin)
+const getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find({ role: { $ne: 'admin' } }).sort({ createdAt: -1 });
+        res.status(200).json({
+            success: true,
+            data: users,
+        });
+    } catch (error) {
+        console.error("Get all users error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch users",
+        });
+    }
+};
+
+// @desc    Create a new user
+// @route   POST /api/admin/users
+// @access  Private (Admin)
+const createUser = async (req, res) => {
+    try {
+        const { name, email, password, role, status } = req.body;
+        
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ success: false, message: "User already exists" });
+        }
+
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: role || "editor",
+            status: status || "active",
+        });
+
+        res.status(201).json({
+            success: true,
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
+        });
+    } catch (error) {
+        console.error("Create user error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to create user",
+        });
+    }
+};
+
+// @desc    Update a user
+// @route   PUT /api/admin/users/:id
+// @access  Private (Admin)
+const updateUser = async (req, res) => {
+    try {
+        const { name, email, role, status, password } = req.body;
+        
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        user.name = name || user.name;
+        user.email = email || user.email;
+        user.role = role || user.role;
+        user.status = status || user.status;
+        
+        if (password) {
+            user.password = password;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
+        });
+    } catch (error) {
+        console.error("Update user error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to update user",
+        });
+    }
+};
+
+// @desc    Delete a user
+// @route   DELETE /api/admin/users/:id
+// @access  Private (Admin)
+const deleteUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        
+        await user.deleteOne();
+        
+        res.status(200).json({
+            success: true,
+            message: "User deleted successfully",
+        });
+    } catch (error) {
+        console.error("Delete user error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete user",
+        });
+    }
+};
+
+module.exports = { 
+    getAdminStats, 
+    getAllUsers, 
+    createUser, 
+    updateUser, 
+    deleteUser 
+};

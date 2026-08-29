@@ -41,6 +41,25 @@ const createBlog = async (req, res) => {
             });
         }
 
+        // Handle Category resolving (convert string name from frontend into an ObjectId)
+        let resolvedCategoryId = null;
+        if (category && typeof category === 'string' && category.trim() !== '') {
+            const mongoose = require('mongoose');
+            if (mongoose.Types.ObjectId.isValid(category)) {
+                resolvedCategoryId = category;
+            } else {
+                const Category = require('../models/Category');
+                let existingCategory = await Category.findOne({ name: new RegExp('^' + category.trim() + '$', 'i') });
+                if (existingCategory) {
+                    resolvedCategoryId = existingCategory._id;
+                } else {
+                    const catSlug = category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+                    const newCat = await Category.create({ name: category.trim(), slug: catSlug });
+                    resolvedCategoryId = newCat._id;
+                }
+            }
+        }
+
         // Create blog
         const blog = await Blog.create({
             title: title.trim(),
@@ -49,7 +68,7 @@ const createBlog = async (req, res) => {
             content,
             featuredImage: featuredImage || "",
             author: req.user._id,
-            category: category || null,
+            category: resolvedCategoryId,
             tags: Array.isArray(tags) ? tags : [],
             status: status || "draft",
             scheduledAt: scheduledAt || null,
@@ -231,7 +250,27 @@ const updateBlog = async (req, res) => {
         if (excerpt !== undefined) blog.excerpt = excerpt.trim();
         if (content !== undefined) blog.content = content;
         if (featuredImage !== undefined) blog.featuredImage = featuredImage;
-        if (category !== undefined) blog.category = category || null;
+        
+        if (category !== undefined) {
+            if (category && typeof category === 'string' && category.trim() !== '') {
+                const mongoose = require('mongoose');
+                if (mongoose.Types.ObjectId.isValid(category)) {
+                    blog.category = category;
+                } else {
+                    const Category = require('../models/Category');
+                    let existingCategory = await Category.findOne({ name: new RegExp('^' + category.trim() + '$', 'i') });
+                    if (existingCategory) {
+                        blog.category = existingCategory._id;
+                    } else {
+                        const catSlug = category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+                        const newCat = await Category.create({ name: category.trim(), slug: catSlug });
+                        blog.category = newCat._id;
+                    }
+                }
+            } else {
+                blog.category = null;
+            }
+        }
         if (tags !== undefined) blog.tags = Array.isArray(tags) ? tags : blog.tags;
         if (status !== undefined) blog.status = status;
         if (scheduledAt !== undefined) blog.scheduledAt = scheduledAt;
@@ -330,6 +369,85 @@ const publishBlog = async (req, res) => {
         });
     }
 };
+// @desc    Get all published blogs (Public)
+// @route   GET /api/public/blogs
+// @access  Public
+const getPublicBlogs = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const skip = (page - 1) * limit;
+
+        const { category, search, tag } = req.query;
+
+        // Force status to be published for public endpoints
+        const filter = { status: "published" };
+
+        if (category) {
+            filter.category = category;
+        }
+        if (tag) {
+            filter.tags = { $in: [tag] };
+        }
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { excerpt: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        const total = await Blog.countDocuments(filter);
+        const blogs = await Blog.find(filter)
+            .populate("author", "name")
+            .populate("category", "name slug")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.status(200).json({
+            success: true,
+            total,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page,
+            blogs,
+        });
+    } catch (error) {
+        console.error("Get public blogs error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch blogs",
+        });
+    }
+};
+
+// @desc    Get single published blog by slug (Public)
+// @route   GET /api/public/blogs/:slug
+// @access  Public
+const getPublicBlogBySlug = async (req, res) => {
+    try {
+        const blog = await Blog.findOne({ slug: req.params.slug, status: "published" })
+            .populate("author", "name")
+            .populate("category", "name slug");
+
+        if (!blog) {
+            return res.status(404).json({
+                success: false,
+                message: "Blog not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            blog,
+        });
+    } catch (error) {
+        console.error("Get public blog error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch blog",
+        });
+    }
+};
 
 module.exports = {
     createBlog,
@@ -338,4 +456,6 @@ module.exports = {
     updateBlog,
     deleteBlog,
     publishBlog,
+    getPublicBlogs,
+    getPublicBlogBySlug,
 };
