@@ -1,6 +1,61 @@
 const User = require("../models/User");
 const Blog = require("../models/Blog");
 const Category = require("../models/Category");
+const SubCategory = require("../models/SubCategory");
+
+// @desc    Get editor specific dashboard metrics & stats
+// @route   GET /api/admin/editor-stats
+// @access  Private (Editor, Admin)
+const getEditorStats = async (req, res) => {
+    try {
+        const editorId = req.user._id;
+
+        const [
+            myTotalBlogs,
+            myPublishedBlogs,
+            myDraftBlogs,
+            totalCategories,
+            totalSubCategories,
+            recentBlogs,
+        ] = await Promise.all([
+            Blog.countDocuments({ author: editorId }),
+            Blog.countDocuments({ author: editorId, status: "published" }),
+            Blog.countDocuments({ author: editorId, status: "draft" }),
+            Category.countDocuments(),
+            SubCategory.countDocuments(),
+            Blog.find({ author: editorId })
+                .select("title slug status createdAt")
+                .populate("category", "name slug")
+                .populate("subCategory", "name slug")
+                .sort({ createdAt: -1 })
+                .limit(5),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                blogs: {
+                    total: myTotalBlogs,
+                    published: myPublishedBlogs,
+                    draft: myDraftBlogs,
+                },
+                categories: {
+                    total: totalCategories,
+                },
+                subCategories: {
+                    total: totalSubCategories,
+                },
+                recentBlogs,
+            },
+        });
+    } catch (error) {
+        console.error("Get editor stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch editor dashboard metrics",
+        });
+    }
+};
 
 // @desc    Get dashboard metrics & stats
 // @route   GET /api/admin/stats
@@ -189,7 +244,8 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = { 
-    getAdminStats, 
+    getAdminStats,
+    getEditorStats,
     getAllUsers, 
     createUser, 
     updateUser, 

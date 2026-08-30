@@ -26,16 +26,19 @@ const permissions = {
     ],
 
     editor: [
-        "blog.create",
-        "blog.read",
-        "blog.update",
+    "blog.create",
+    "blog.read",
+    "blog.update",
 
+    
+    "category.read",
 
     "subcategory.create",
     "subcategory.read",
     "subcategory.update",
 
     "seo.update",
+    "editor.dashboard",
   ],
 };
 

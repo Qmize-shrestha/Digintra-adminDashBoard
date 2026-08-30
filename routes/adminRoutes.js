@@ -1,6 +1,7 @@
 const express = require("express");
 const { 
     getAdminStats,
+    getEditorStats,
     getAllUsers,
     createUser,
     updateUser,
@@ -12,6 +13,7 @@ const { authorize } = require("../middleware/authorizationMiddleware");
 const router = express.Router();
 
 router.get("/stats", protect, authorize("admin.dashboard"), getAdminStats);
+router.get("/editor-stats", protect, authorize("editor.dashboard"), getEditorStats);
 
 // User Management Routes
 router.get("/users", protect, authorize("user.read"), getAllUsers);
