@@ -11,10 +11,15 @@ const permissions = {
         "category.update",
         "category.delete",
 
-        "user.create",
-        "user.read",
-        "user.update",
-        "user.delete",
+    "subcategory.create",
+    "subcategory.read",
+    "subcategory.update",
+    "subcategory.delete",
+
+    "user.create",
+    "user.read",
+    "user.update",
+    "user.delete",
 
         "seo.update",
         "admin.dashboard",
@@ -26,12 +31,12 @@ const permissions = {
         "blog.update",
 
 
-        "category.create",
-        "category.read",
-        "category.update",
+    "subcategory.create",
+    "subcategory.read",
+    "subcategory.update",
 
-        "seo.update",
-    ],
+    "seo.update",
+  ],
 };
 
 module.exports = permissions;

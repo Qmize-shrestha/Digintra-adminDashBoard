@@ -11,7 +11,6 @@ const categorySchema = new mongoose.Schema(
     slug: {
       type: String,
       required: [true, "Please add a category slug"],
-      unique: true,
       trim: true,
       lowercase: true,
     },

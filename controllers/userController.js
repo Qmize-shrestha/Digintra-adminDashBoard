@@ -144,7 +144,7 @@ const updateUser = async (req, res) => {
             });
         }
 
-        const { name, email, role, status, password } = req.body;
+        const { name, email, role, password } = req.body;
 
         if (email && email !== user.email) {
             const emailExists = await User.findOne({
@@ -162,7 +162,7 @@ const updateUser = async (req, res) => {
 
         if (name) user.name = name;
         if (role) user.role = role;
-        if (status) user.status = status;
+        // if (status) user.status = status;
         if (password) user.password = password; // pre-save will hash
 
         await user.save();

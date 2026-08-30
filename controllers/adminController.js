@@ -18,7 +18,7 @@ const getAdminStats = async (req, res) => {
             recentUsers,
         ] = await Promise.all([
             User.countDocuments(),
-            User.countDocuments({ status: "active" }),
+            // User.countDocuments({ status: "active" }),
             Blog.countDocuments(),
             Blog.countDocuments({ status: "published" }),
             Blog.countDocuments({ status: "draft" }),

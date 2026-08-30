@@ -42,10 +42,10 @@ const blogSchema = new mongoose.Schema(
       ref: "Category",
     },
 
-    subCategorySlug: {
-      type: String,
-      trim: true,
-      default: "",
+    subCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+      default: null,
     },
 
     tags: [
@@ -107,6 +107,7 @@ const blogSchema = new mongoose.Schema(
 blogSchema.index({ status: 1, createdAt: -1 });
 blogSchema.index({ author: 1 });
 blogSchema.index({ category: 1 });
+blogSchema.index({ subCategory: 1 });
 blogSchema.index({ title: "text", excerpt: "text" });
 
 module.exports = mongoose.model("Blog", blogSchema);

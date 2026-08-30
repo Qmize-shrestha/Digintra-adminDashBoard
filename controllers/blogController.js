@@ -12,6 +12,7 @@ const createBlog = async (req, res) => {
             content,
             featuredImage,
             category,
+            subCategory,
             tags,
             status,
             scheduledAt,
@@ -68,17 +69,19 @@ const createBlog = async (req, res) => {
             content,
             featuredImage: featuredImage || "",
             author: req.user._id,
-            category: resolvedCategoryId,
+            category: category || null,
+            subCategory: subCategory || null,
             tags: Array.isArray(tags) ? tags : [],
             status: status || "draft",
             scheduledAt: scheduledAt || null,
             seo: seo || {},
         });
 
-        // Populate author & category before returning
+        // Populate author, category & subCategory before returning
         const populatedBlog = await Blog.findById(blog._id)
             .populate("author", "name email role")
-            .populate("category", "name slug");
+            .populate("category", "name slug")
+            .populate("subCategory", "name slug");
 
         res.status(201).json({
             success: true,
@@ -103,7 +106,7 @@ const getBlogs = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 10;
         const skip = (page - 1) * limit;
 
-        const { status, category, author, search, tag, sort } = req.query;
+        const { status, category, subCategory, author, search, tag, sort } = req.query;
 
         const filter = {};
 
@@ -113,6 +116,10 @@ const getBlogs = async (req, res) => {
 
         if (category) {
             filter.category = category;
+        }
+
+        if (subCategory) {
+            filter.subCategory = subCategory;
         }
 
         if (author) {
@@ -140,6 +147,7 @@ const getBlogs = async (req, res) => {
         const blogs = await Blog.find(filter)
             .populate("author", "name email role")
             .populate("category", "name slug")
+            .populate("subCategory", "name slug")
             .sort(sortOption)
             .skip(skip)
             .limit(limit);
@@ -172,7 +180,8 @@ const getBlogById = async (req, res) => {
 
         const blog = await Blog.findOne(query)
             .populate("author", "name email role")
-            .populate("category", "name slug");
+            .populate("category", "name slug")
+            .populate("subCategory", "name slug");
 
         if (!blog) {
             return res.status(404).json({
@@ -223,6 +232,7 @@ const updateBlog = async (req, res) => {
             content,
             featuredImage,
             category,
+            subCategory,
             tags,
             status,
             scheduledAt,
@@ -250,27 +260,8 @@ const updateBlog = async (req, res) => {
         if (excerpt !== undefined) blog.excerpt = excerpt.trim();
         if (content !== undefined) blog.content = content;
         if (featuredImage !== undefined) blog.featuredImage = featuredImage;
-        
-        if (category !== undefined) {
-            if (category && typeof category === 'string' && category.trim() !== '') {
-                const mongoose = require('mongoose');
-                if (mongoose.Types.ObjectId.isValid(category)) {
-                    blog.category = category;
-                } else {
-                    const Category = require('../models/Category');
-                    let existingCategory = await Category.findOne({ name: new RegExp('^' + category.trim() + '$', 'i') });
-                    if (existingCategory) {
-                        blog.category = existingCategory._id;
-                    } else {
-                        const catSlug = category.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-                        const newCat = await Category.create({ name: category.trim(), slug: catSlug });
-                        blog.category = newCat._id;
-                    }
-                }
-            } else {
-                blog.category = null;
-            }
-        }
+        if (category !== undefined) blog.category = category || null;
+        if (subCategory !== undefined) blog.subCategory = subCategory || null;
         if (tags !== undefined) blog.tags = Array.isArray(tags) ? tags : blog.tags;
         if (status !== undefined) blog.status = status;
         if (scheduledAt !== undefined) blog.scheduledAt = scheduledAt;
@@ -280,7 +271,8 @@ const updateBlog = async (req, res) => {
 
         const populatedBlog = await Blog.findById(updatedBlog._id)
             .populate("author", "name email role")
-            .populate("category", "name slug");
+            .populate("category", "name slug")
+            .populate("subCategory", "name slug");
 
         res.status(200).json({
             success: true,
@@ -354,7 +346,8 @@ const publishBlog = async (req, res) => {
 
         const populatedBlog = await Blog.findById(blog._id)
             .populate("author", "name email role")
-            .populate("category", "name slug");
+            .populate("category", "name slug")
+            .populate("subCategory", "name slug");
 
         res.status(200).json({
             success: true,
