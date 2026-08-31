@@ -1,5 +1,5 @@
 const express = require("express");
-const { 
+const {
     getAdminStats,
     getAllUsers,
     createUser,

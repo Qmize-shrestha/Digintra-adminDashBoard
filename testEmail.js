@@ -6,10 +6,10 @@ dotenv.config();
 
 const testNodemailer = async () => {
     try {
-        console.log("Attempting to send a test email...");
+        console.log("Attempting to send a test email..."); 
         
         await sendEmail({
-            email: "test@example.com", // It doesn't matter what email this is if using Mailtrap
+            email: "subi84864@gmail.com", // It doesn't matter what email this is if using Mailtrap
             subject: "Nodemailer Test",
             message: "Hello! If you are reading this, Nodemailer is working perfectly!",
         });
