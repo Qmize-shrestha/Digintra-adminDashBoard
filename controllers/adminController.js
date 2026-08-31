@@ -73,7 +73,7 @@ const getAdminStats = async (req, res) => {
             recentUsers,
         ] = await Promise.all([
             User.countDocuments(),
-            // User.countDocuments({ status: "active" }),
+            Promise.resolve(0), // Replaced commented query to keep array indexes aligned
             Blog.countDocuments(),
             Blog.countDocuments({ status: "published" }),
             Blog.countDocuments({ status: "draft" }),
@@ -143,7 +143,7 @@ const getAllUsers = async (req, res) => {
 const createUser = async (req, res) => {
     try {
         const { name, email, password, role, status } = req.body;
-        
+
         const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ success: false, message: "User already exists" });
@@ -182,7 +182,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { name, email, role, status, password } = req.body;
-        
+
         const user = await User.findById(req.params.id);
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
@@ -192,7 +192,7 @@ const updateUser = async (req, res) => {
         user.email = email || user.email;
         user.role = role || user.role;
         user.status = status || user.status;
-        
+
         if (password) {
             user.password = password;
         }
@@ -227,9 +227,9 @@ const deleteUser = async (req, res) => {
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
-        
+
         await user.deleteOne();
-        
+
         res.status(200).json({
             success: true,
             message: "User deleted successfully",
@@ -243,11 +243,11 @@ const deleteUser = async (req, res) => {
     }
 };
 
-module.exports = { 
+module.exports = {
     getAdminStats,
     getEditorStats,
-    getAllUsers, 
-    createUser, 
-    updateUser, 
-    deleteUser 
+    getAllUsers,
+    createUser,
+    updateUser,
+    deleteUser
 };
