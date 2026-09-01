@@ -32,6 +32,8 @@ const permissions = {
 
     
     "category.read",
+    "category.create",
+    "category.update",
 
     "subcategory.create",
     "subcategory.read",
