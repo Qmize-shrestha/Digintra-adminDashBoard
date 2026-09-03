@@ -217,13 +217,7 @@ const updateBlog = async (req, res) => {
             });
         }
 
-        // Ownership check: Only Admin or the blog's Author can update
-        if (req.user.role !== "admin" && blog.author.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: "Not authorized to update another user's blog",
-            });
-        }
+        // Any authorized user can update the blog
 
         const {
             title,
@@ -302,13 +296,7 @@ const deleteBlog = async (req, res) => {
             });
         }
 
-        // Ownership check: Only Admin or the blog's Author can delete
-        if (req.user.role !== "admin" && blog.author.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: "Not authorized to delete another user's blog",
-            });
-        }
+        // Any authorized user can delete the blog
 
         await blog.deleteOne();
 

@@ -24,7 +24,7 @@ const getEditorStats = async (req, res) => {
             Category.countDocuments(),
             SubCategory.countDocuments(),
             Blog.find({ author: editorId })
-                .select("title slug status createdAt")
+                .select("title slug status featuredImage createdAt")
                 .populate("category", "name slug")
                 .populate("subCategory", "name slug")
                 .sort({ createdAt: -1 })
@@ -79,7 +79,7 @@ const getAdminStats = async (req, res) => {
             Blog.countDocuments({ status: "draft" }),
             Category.countDocuments(),
             Blog.find()
-                .select("title slug status author createdAt")
+                .select("title slug status author featuredImage createdAt")
                 .populate("author", "name email")
                 .sort({ createdAt: -1 })
                 .limit(5),
