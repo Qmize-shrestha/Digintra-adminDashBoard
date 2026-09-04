@@ -49,6 +49,10 @@ const login = async (req, res) => {
         // Generate JWT
         const token = generateToken(user);
 
+        // Update online status
+        user.isOnline = true;
+        await user.save();
+
         res.status(200).json({
             success: true,
             message: "Login successful",
@@ -246,4 +250,36 @@ module.exports = {
     signup,
     forgotPassword,
     resetPassword,
+};
+
+// @desc    User logout
+// @route   POST /api/auth/logout
+// @access  Private
+const logout = async (req, res) => {
+    try {
+        if (req.user) {
+            const user = await User.findById(req.user._id);
+            if (user) {
+                user.isOnline = false;
+                await user.save();
+            }
+        }
+        res.status(200).json({
+            success: true,
+            message: "Logout successful",
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to logout",
+        });
+    }
+};
+
+module.exports = {
+    login,
+    signup,
+    forgotPassword,
+    resetPassword,
+    logout,
 };

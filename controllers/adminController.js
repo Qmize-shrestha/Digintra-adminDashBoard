@@ -83,8 +83,8 @@ const getAdminStats = async (req, res) => {
                 .populate("author", "name email")
                 .sort({ createdAt: -1 })
                 .limit(5),
-            User.find()
-                .select("name email role status createdAt")
+            User.find({ role: { $ne: 'admin' } })
+                .select("name email role status isOnline createdAt")
                 .sort({ createdAt: -1 })
                 .limit(5),
         ]);

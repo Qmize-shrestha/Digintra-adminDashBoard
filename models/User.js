@@ -41,6 +41,11 @@ const userSchema = new mongoose.Schema(
       default: "active",
     },
 
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
     resetPasswordToken: {
       type: String,
       select: false,
